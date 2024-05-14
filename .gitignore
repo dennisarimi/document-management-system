@@ -1,0 +1,16 @@
+# Virtual environment
+**/venv/
+
+# Dependency directories
+**/node_modules/
+
+# Compiled Python files
+**/*.pyc
+**/__pycache__/
+
+# SQLite database file
+**/db.sqlite3
+
+# Editor/IDE specific files
+**/.vscode/
+**/.idea/
