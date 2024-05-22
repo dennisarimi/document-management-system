@@ -23,34 +23,37 @@ def create_app():
         if 'file' not in request.files:
             return jsonify({'error': 'No file part'}), 400
     
-        name = request.form['name']
+        name = request.form['name'].upper() # save document names in uppeercase
         category = request.form['category']
         file_data = request.files['file'].read()
-        document = Document(name=name, category=category, file_data=file_data)
+        
+        version_nums = Document.query.filter_by(name=name).all()
+        
+        document = Document(name=name, version=(len(version_nums) + 1), category=category, file_data=file_data)
         document.save_to_db()
         return jsonify({'message': 'File uploaded successfully'}), 200
     
-    # View all documents
+    # View documents by id, by name and version or view all documents
     @app.route('/documents', methods=['GET'])
     def get_documents():
+        id = request.args.get('id')
+        name = request.args.get('name')
+        version = request.args.get('version')
+        
+        if id:
+            document = Document.query.filter_by(id=id).first()
+            return jsonify(document.serialize())
+        
+        if name and not version:
+            documents = Document.query.filter_by(name=name).all()
+            return jsonify([document.serialize() for document in documents])
+        
+        if name and version:
+            document = Document.query.filter_by(name=name, version=version).first()
+            return jsonify(document.serialize())
+            
         documents = Document.query.all()
         return jsonify([document.serialize() for document in documents])
-    
-    # View one document
-    @app.route('/documents/<int:document_id>', methods=['GET'])
-    def get_document(document_id):
-        document = Document.query.filter_by(id=document_id).first()
-        return jsonify(document.serialize())
-    
-    # View all previous versions
-    @app.route('/documents/<int:document_id>/versions')
-    def get_all_versions():
-        pass
-    
-    # View specific previous version
-    @app.route('/documents/<int:document_id>/versions/<int:version_number>')
-    def get_specific_version():
-        pass
     
     # Delete Endpoint
     @app.route('/documents/<int:document_id>/delete', methods=['DELETE'])
@@ -58,6 +61,13 @@ def create_app():
         document = Document.query.get_or_404(document_id)
         document.delete_from_db()
         return jsonify({'message': 'Document deleted successfully'}), 200
+    
+    # Delete All
+    @app.route('/documents/delete/all', methods=['DELETE'])
+    def delete_all_documents():
+        db.session.query(Document).delete()
+        db.session.commit()
+        return jsonify({'message': 'All documents deleted successfully'}), 200
     
     # Download Endpoint
     @app.route('/documents/<int:document_id>/download')
