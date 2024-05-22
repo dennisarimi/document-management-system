@@ -33,9 +33,44 @@ def create_app():
         document.save_to_db()
         return jsonify({'message': 'File uploaded successfully'}), 200
     
-    # View documents by id, by name and version or view all documents
+    # View all documents
     @app.route('/documents', methods=['GET'])
     def get_documents():
+        documents = Document.query.all()
+        return jsonify([document.serialize() for document in documents])
+    
+    # Delete Endpoint
+    @app.route('/documents/delete', methods=['DELETE'])
+    def delete_document(document_id):
+        id = request.args.get('id')
+        
+        document = Document.query.get_or_404(id)
+        document.delete_from_db()
+        return jsonify({'message': 'Document deleted successfully'}), 200
+    
+    # Delete All
+    @app.route('/documents/delete/all', methods=['DELETE'])
+    def delete_all_documents():
+        db.session.query(Document).delete()
+        db.session.commit()
+        return jsonify({'message': 'All documents deleted successfully'}), 200
+    
+    # Download Endpoint
+    @app.route('/documents/download')
+    def download_document():
+        id = request.args.get('id')
+        
+        document = Document.query.get_or_404(id)
+        return send_file(
+            io.BytesIO(document.file_data),  # Provide the file data as a BytesIO object
+            download_name=document.name,  # Set the downloaded file name
+            as_attachment=True,  # Force the browser to treat it as an attachment
+        )
+    
+    # Search Endpoint
+    @app.route('/search')
+    def search_documents():
+        # Search by id, name, or name and version number
         id = request.args.get('id')
         name = request.args.get('name')
         version = request.args.get('version')
@@ -51,46 +86,8 @@ def create_app():
         if name and version:
             document = Document.query.filter_by(name=name, version=version).first()
             return jsonify(document.serialize())
-            
-        documents = Document.query.all()
-        return jsonify([document.serialize() for document in documents])
-    
-    # Delete Endpoint
-    @app.route('/documents/<int:document_id>/delete', methods=['DELETE'])
-    def delete_document(document_id):
-        document = Document.query.get_or_404(document_id)
-        document.delete_from_db()
-        return jsonify({'message': 'Document deleted successfully'}), 200
-    
-    # Delete All
-    @app.route('/documents/delete/all', methods=['DELETE'])
-    def delete_all_documents():
-        db.session.query(Document).delete()
-        db.session.commit()
-        return jsonify({'message': 'All documents deleted successfully'}), 200
-    
-    # Download Endpoint
-    @app.route('/documents/<int:document_id>/download')
-    def download_document(document_id):
-        document = Document.query.get_or_404(document_id)
-        return send_file(
-            io.BytesIO(document.file_data),  # Provide the file data as a BytesIO object
-            download_name=document.name,  # Set the downloaded file name
-            as_attachment=True,  # Force the browser to treat it as an attachment
-            mimetype='application/' + document.extension
-        )
-    
-    # Search Endpoint
-    @app.route('/search')
-    def search_documents():
-        # Implement search functionality based on query parameters
-        # Example: search by document name
-        name = request.args.get('name')
-        if name:
-            documents = Document.query.filter(Document.name.ilike(f'%{name}%')).all()
-            return jsonify([document.serialize() for document in documents])
-        else:
-            return jsonify({'error': 'Missing query parameter "name"'}), 400
+        
+        return jsonify({'error': 'Missing query parameter'}), 400
 
     return app
 
